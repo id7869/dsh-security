@@ -1,0 +1,10 @@
+node_modules/
+state/
+*.log
+__pycache__/
+*.pyc
+.env
+.DS_Store
+Thumbs.db
+*.new.js
+*.new.mjs

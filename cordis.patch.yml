@@ -1,0 +1,7 @@
+# dsh-security bundle patch
+# 当本包通过 `dsh plugin --profile <name> add dsh-security` 安装后，dsh 启动时自动加载。
+# 插入本插件自身：apply() 里注册 bundled skill provider（10 个阶段 skill + 入口 skill）。
+
+- insert:
+    - id: dsh-security
+      name: 'dsh-security'

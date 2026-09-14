@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dsh.local/schemas/dsh-security/finding.schema.json",
+  "title": "dsh-security finding",
+  "description": "一条安全发现（finding）的结构化表示，语义对齐 codex-security 的 finding 文档，去掉 embedding 与外部工单字段。",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "location",
+    "category",
+    "severity",
+    "disposition",
+    "fingerprint"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "稳定 id，形如 csf_<16 位小写 hex>；由确定性 FNV-1a 64 指纹派生，同一根因在重扫时保持稳定。"
+    },
+    "fingerprint": {
+      "type": "string",
+      "description": "确定性身份指纹，形如 fp_<16 位小写 hex>（缺少 context/evidence 时为 wfp_<16 位小写 hex>）：由 category + location(file) + context 规范化后做 FNV-1a 64 哈希得到，跨扫描稳定，用于去重。无向量/embedding。"
+    },
+    "title": {
+      "type": "string",
+      "description": "一句话标题，如 Possible SQL injection in login handler。"
+    },
+    "location": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "仓库内相对路径。"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based 行号，可选。"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "相关函数/类名，可选。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "category": {
+      "type": "string",
+      "description": "漏洞类别，如 SQL injection / XSS / Path traversal / SSRF / Hardcoded secret。"
+    },
+    "cwe": {
+      "type": "string",
+      "description": "CWE 编号（如 CWE-89），可选但建议给出。"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "description": "按 rubric/severity-policy.md 定级。"
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "reportable",
+        "suppressed",
+        "not_applicable",
+        "deferred"
+      ],
+      "description": "验证结论：reportable=确认可报告；suppressed=误报/已被有意抑制；not_applicable=条件不成立不可利用；deferred=证据不足待深查。"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "验证置信度。"
+    },
+    "claim": {
+      "type": "string",
+      "description": "发现阶段提出的具体断言（数据如何从 source 流向 sink、为何不安全）。"
+    },
+    "evidence": {
+      "type": "string",
+      "description": "支撑结论的代码片段/调用链摘录。"
+    },
+    "remediation": {
+      "type": "string",
+      "description": "修复建议，可选（report-only 默认不实施）。"
+    },
+    "repro": {
+      "type": "string",
+      "description": "复现步骤或触发路径，可选。"
+    },
+    "scanId": {
+      "type": "string",
+      "description": "所属扫描 id，形如 scan_<timestamp>_<rand>。"
+    },
+    "repository": {
+      "type": "string",
+      "description": "扫描目标标识（目录名或仓库名）。"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 时间戳。"
+    },
+    "context": {
+      "type": "string",
+      "description": "用于计算去重指纹的规范化代码片段（不含行号、去首尾空白）；由 discover 产出，validate 透传"
+    }
+  },
+  "additionalProperties": false
+}

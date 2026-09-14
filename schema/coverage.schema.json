@@ -1,0 +1,56 @@
+{
+  "$id": "https://dsh.local/schemas/dsh-security/coverage.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "sinkCount": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "inventoryStrategy": {
+      "type": "string",
+      "enum": [
+        "directory",
+        "git_worktree",
+        "git_diff",
+        "git_revision"
+      ]
+    },
+    "totalFilesEstimate": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "scannedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "skipped": {
+      "type": "object",
+      "description": "skip reasons by directory/pattern"
+    },
+    "fileHashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "scannedFiles 相对路径到 SHA256 十六进制摘要的映射，用于 coverage snapshot 完整性校验"
+    },
+    "snapshotDigest": {
+      "type": "string",
+      "pattern": "^dsh-security-snapshot/v1:sha256:[0-9a-f]{64}$",
+      "description": "对 scannedFiles + fileHashes 做确定性 SHA256 后生成的快照摘要"
+    },
+    "repository": {
+      "type": "string"
+    }
+  },
+  "title": "dsh-security coverage",
+  "required": [
+    "repository",
+    "scannedFiles",
+    "totalFilesEstimate"
+  ],
+  "type": "object"
+}
