@@ -2,11 +2,21 @@
 
 在 DSH 内等价重建 OpenAI codex-security 的「发现 → 验证 → 报告」安全审计能力，只借鉴其方法论、不移植其代码。
 
+- 目标：把 codex-security 的安全审计方法论移植到 DeepSeek Harness（DSH），以原生 skills + workflow 形态等价重建，不依赖 OpenAI 运行时或外部服务。
 - 形态：独立 DSH 插件（skills + workflow），不是独立 CLI/CI。
 - 主能力线：发现 → 验证 → 报告（report-only 默认；可选 patch/verify-fix 修复复验）。
 - 去重：砍掉向量预筛，候选来自 finding 身份指纹 + 本地 JSONL 历史，同模型两阶段评审（粗筛 SAME/DISTINCT → 深度确认 canonical+merged）。
 - 模型/依赖：严格只用 DSH 当前模型 + 原生能力（无 embedding / OpenAI key / Python / Docker）。
 - 持久化：仅本地 JSONL 文件（`state/` 下），无 SQLite、无 Mnemon。
+
+## 特性
+
+- **确定性契约**：`workflow/scan.js` 与 `workflow/diff.js` 内联纯函数计算 FNV-1a 64 指纹、SHA-256、SARIF、manifest 与 coverage snapshot，跨扫描结果稳定。
+- **独立验证**：discover 只提出候选，validate 由全新 subagent 重新读源码独立得出结论，切断推理泄漏。
+- **两阶段去重**：指纹 + 本地历史召回 → 粗筛 → 深度确认 → 传递闭包分组。
+- **完整产物**：`findings.json`、`report.md`、SARIF 2.1.0（含 CWE/`security-severity`）、`coverage.json`、`scan-manifest.json`，deep 模式另有 `reductions.json`。
+- **封存校验**：`seal` 阶段按编排脚本生成的预期 SHA256/字节数校验产物，再逐字写 manifest 与 JSONL。
+- **能力面**：标准/深扫扫描、diff 扫描、修复复验、已有告警入库、工单跟踪、漏洞报告与加固建议。
 
 ## v4 优化记录
 
