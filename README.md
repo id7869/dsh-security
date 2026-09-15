@@ -246,6 +246,14 @@ inventory → threat-model → [ discover → validate ]×(深扫多轮，按指
 - 编排脚本自身无文件系统访问：所有读写由各阶段 subagent 用 read/write 完成，脚本只协调与传文本。
 - 默认 report-only；只有 `fix.js` 会改源码。
 
+- **官方实验性 Agent Teams 插件（`@nanmicoder/dsh-agent-teams@0.1.18` / 官方 `@deepseek-ai/dsh-experimental-agent-team-profile`）与本机 DSH 0.1.5-rc.1 子代理完成回调存在兼容性冲突**：
+  - **症状**：每个子代理（subagent）在 `step/end` 后 `turn/end` 阶段报错：`"agent "<id>" is not a member of an active Agent Team" (code: UNKNOWN)`。
+  - **影响**：host 回调 Agent Teams 服务，因子代理不在任何 Team 而抛错 → turn 被判为 error → `agent()` 返回 null → 扫描流水线得到空候选 → `sealed: false`，整个扫描产出不可信。
+  - **根因分析**：`tryMembership` 对普通 subagent 理应返回 `void 0`（411 行 `subagentDescriptor` 检查），但有调用方在 `turn/end` 路径上抛了 `TEAM_NOT_MEMBER` 错误。
+  - **与历史问题的关联**：高度疑似是 Agent Teams 插件与 DSH 0.1.5-rc.1 子代理完成回调的兼容 bug——正是此前 `@dsh-external/workflow` 同类问题（`agent.session.events is not iterable`）的重演，只是换了插件。
+  - **附加问题**：子代理工具调用也存在不稳定性（如 `FS_NOT_FOUND`——连 read 都报文件不存在），可能加剧流水线产出波动。
+  - **建议**：运行 dsh-security 扫描时，暂时**禁用/不启用** Agent Teams 插件，待官方修复后重新评估兼容性。
+
 ## 后续
 
 - 已完成：v0 骨架 + v1 只读核心闭环 + v2 深扫/去重/重分级 + v3 patch/verify-fix 与 triage 入库 + v4 确定性契约与 seal 校验。
@@ -296,3 +304,4 @@ inventory → threat-model → [ discover → validate ]×(深扫多轮，按指
 - **工程等价重建**：把 MCP server + Python workbench + SQLite 持久化替换为 DSH 原生 `workflow` 编排 + 内联纯函数确定性契约 + JSONL 持久化，不依赖 OpenAI/向量/Python/Docker。
 - **已对齐**：标准扫描、diff 扫描、深扫、威胁建模、验证、修复复验、入库、跟踪、writeup、加固建议、SARIF 与封存契约。
 - **已知差异**：`assess-patch-risk` 未实现；`define-security-policy` 用静态 `security-policy.md` 替代；无 CSV 导出；fingerprint/findingId 算法与 Codex 不同（语义一致、不可互认）；动态 PoC 验证为可选项。
+
