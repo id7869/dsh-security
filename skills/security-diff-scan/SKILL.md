@@ -10,7 +10,7 @@ whenToUse: 当用户要求对 PR/commit/分支差异/工作区变更做安全审
 
 ## 运行方式
 
-先用 `read` 读取 `workflow/diff.js` 全文，再用原生 `workflow` 工具执行，`meta` 给一个 kebab-case 名字（如 `dsh-security-diff`），`args`：
+先用文件读取工具（`read`；若本机没有该工具，用 `ops_inspect_local_file` 等等价工具）读取 `workflow/diff.js` 全文，再用原生 `workflow` 工具执行。`meta` **必须同时给 `name` 和 `description`**（rc.5 起两者必填），`name` 用 kebab-case（如 `dsh-security-diff`），建议声明 `phases`（`diff-inventory`/`discover`/`validate`/`report`/`seal`）。`args`：
 
 ```json
 {
@@ -19,9 +19,11 @@ whenToUse: 当用户要求对 PR/commit/分支差异/工作区变更做安全审
   "outputDir": "<产物目录绝对路径>",
   "stateDir": "<JSONL workbench 目录绝对路径>",
   "baseRef": "main",
-  "headRef": "HEAD"
+  "headRef": "HEAD",
+  "maxConcurrency": 4
 }
 ```
 
 - `baseRef`/`headRef` 都给时审该区间；否则审工作区未提交变更。
 - 只审变更文件，report-only，不改源码。
+- 若当前会话没有 `workflow` 工具（如 `ops-ptc` 预设），提示用户切到 `standard`/`ptc` 预设，不要硬跑。

@@ -18,7 +18,25 @@ whenToUse: 当用户要求安全审计/漏洞扫描/修复漏洞/finding 入库�
 
 ## 运行方式
 
-先用 `read` 读取插件 `workflow/<脚本>.js` 的完整内容，然后用原生 `workflow` 工具执行它，`meta` 给一个 kebab-case 名字（如 `dsh-security-scan`），`args` 按脚本要求传入。各脚本需要的 `args` 如下：
+1. 先用文件读取工具（`read`；若本机没有该工具，用 `ops_inspect_local_file` 等等价工具）读取插件 `workflow/<脚本>.js` 的完整内容。
+2. 用原生 `workflow` 工具执行它。`meta` **必须同时给 `name` 和 `description`**（rc.5 起两者都是必填，缺 `description` 会直接报 `missing required property "meta.description"`），`name` 用 kebab-case（如 `dsh-security-scan`）。建议同时声明 `phases`，与脚本里的 `phase()` 名称对齐：
+
+   ```json
+   {
+     "name": "dsh-security-scan",
+     "description": "运行 dsh-security 扫描流水线（inventory→threat-model→discover→validate→report→seal）",
+     "phases": [
+       {"title": "inventory", "detail": "代码盘点"},
+       {"title": "threat-model", "detail": "威胁建模"},
+       {"title": "discover", "detail": "候选发现"},
+       {"title": "validate", "detail": "逐条独立复核"}
+     ]
+   }
+   ```
+
+3. `args` 按脚本要求传入，各脚本参数见下。
+
+> **工具面自检**：若当前会话没有 `workflow` 工具（例如 `ops-ptc` 预设只向模型暴露 `run_code`），**不要**改用其他方式硬跑脚本，也不要把脚本复制成别的东西——直接告诉用户：请把会话预设切到 `standard` 或 `ptc` 后重试。若会话没有 `pwsh`（被 dsh-ops 替换成 `ops_bash`），哈希改用 `powershell.exe -NoProfile -Command "(Get-FileHash ...)"`、`sha256sum` 或 node `crypto`。
 
 ### scan（`workflow/scan.js`）
 
@@ -31,11 +49,13 @@ whenToUse: 当用户要求安全审计/漏洞扫描/修复漏洞/finding 入库�
   "mode": "standard",
   "maxDiscoveryRuns": 5,
   "stopAfterNoNew": 2,
+  "maxConcurrency": 4,
   "classify": false
 }
 ```
 
 - `mode`: `standard`（单轮发现）或 `deep`（多 pass 深扫）。
+- `maxConcurrency`: validate/dedupe 阶段的并发上限（默认 4；TPM 受限时保持 2–4）。
 - `classify: true` 时追加 rubric 严重度重分级。
 
 ### fix（`workflow/fix.js`）
@@ -60,7 +80,8 @@ whenToUse: 当用户要求安全审计/漏洞扫描/修复漏洞/finding 入库�
   "outputDir": "<产物目录绝对路径>",
   "stateDir": "<JSONL workbench 目录绝对路径>",
   "baseRef": "main",
-  "headRef": "HEAD"
+  "headRef": "HEAD",
+  "maxConcurrency": 4
 }
 ```
 
@@ -82,7 +103,7 @@ whenToUse: 当用户要求安全审计/漏洞扫描/修复漏洞/finding 入库�
 
 - `repo` 必须在当前会话工作区内（工作区外需更宽沙箱）。
 - `skillDir` 指向插件安装目录下的 `skills/`（各阶段 SKILL.md 所在目录）；若插件 link 安装到工作区，即工作区里的 `dsh-security/skills`。
-- 编排脚本自身无文件系统访问：所有读写由各阶段 subagent 用 read/write 完成，脚本只协调与传文本。
+- 编排脚本自身无文件系统访问：所有读写由各阶段 subagent 用文件读写工具（`read`/`write`，或本机等价的 `ops_inspect_local_file`/`write`）完成，脚本只协调与传文本。
 - 默认 report-only；只有 `fix.js` 会改源码。
 - 产物与持久化只用本地 JSONL（stateDir 下 findings/scans/dedupe-groups/classification/fixes .jsonl），无 embedding/SQLite/Mnemon。
 - 去重候选只来自身份指纹 + JSONL 历史，同模型两阶段（粗筛 SAME/DISTINCT → 深度确认），砍掉向量预筛。

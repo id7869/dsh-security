@@ -16,13 +16,13 @@ whenToUse: 当产物文件已写入磁盘、需要校验哈希/一致性并做 J
 
 ## 过程
 
-1. **哈希校验**：对编排脚本列出的每个文件，用 `pwsh Get-FileHash -Algorithm SHA256` 计算实际 SHA256，并与预期 SHA256 逐项对比。`bytes` 用文件实际大小（`Get-Item`）对比。
+1. **哈希校验**：对编排脚本列出的每个文件计算实际 SHA256 并与预期逐项对比，`bytes` 用文件实际大小对比。哈希优先用 `pwsh Get-FileHash -Algorithm SHA256`；若本机没有 `pwsh` 工具（例如被 dsh-ops 替换为 `ops_bash`），改用 `powershell.exe -NoProfile -Command "(Get-FileHash ...)"`、`sha256sum` 或 node `crypto`，结果必须是小写 hex。
 2. **结构校验**（按编排脚本传入的清单逐项检查）：
    - `findings.json`：顶层为对象且含 `scanId` 与 `findings` 数组；每条 finding 必填 `id`/`title`/`location`/`category`/`severity`/`disposition`/`fingerprint`；`id` 在整批内唯一且等于 `csf_`+`fingerprint` 去掉 `fp_`/`wfp_` 前缀；`severity` 四选一；`disposition` 四选一；`confidence` 三选一。
-   - `exports/results.sarif`：可被 `ConvertFrom-Json` 解析；`runs[0].results` 为数组且长度匹配 reportable 数。
+   - `exports/results.sarif`：可被任意 JSON 解析器（`ConvertFrom-Json`/`jq`/node）解析；`runs[0].results` 为数组且长度匹配 reportable 数。
    - `coverage.json`：含 `scannedFiles` 数组与 `snapshotDigest` 字符串。
    - `diff-scope.json`（若存在）：含 `files` 数组。
-   - `reductions.json`（若存在）：可被 `ConvertFrom-Json` 解析且含 `clusters` 数组。
+   - `reductions.json`（若存在）：可被任意 JSON 解析器解析且含 `clusters` 数组。
    - `report.md`：存在且非空。
    - 任一不满足，`ok=false` 并在 `checks` 中记录失败原因。
 3. **写入 scan-manifest.json**：将编排脚本传入的 manifest **逐字**写入 `outputDir/scan-manifest.json`，不要改动任何字段、不要重算哈希。
@@ -33,6 +33,7 @@ whenToUse: 当产物文件已写入磁盘、需要校验哈希/一致性并做 J
    - 同步将每行压缩为索引写入 `stateDir/findings-index.jsonl`（每行 `{"id":"...","fingerprint":"...","category":"...","file":"...","severity":"..."}`），与 `findings.jsonl` 保持相同顺序。
    - 追加一行 scan 元数据到 `stateDir/scans.jsonl`。
 5. **目录创建**：若 `stateDir` 或 `outputDir/exports/` 不存在，先创建。
+6. **临时文件**：如需临时校验脚本，写到系统临时目录（如 `$TMP`）并在完成后删除，不要落在 `stateDir`/`outputDir`。
 
 ## 输出
 

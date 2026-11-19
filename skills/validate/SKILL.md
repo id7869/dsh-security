@@ -15,12 +15,12 @@ whenToUse: 当有一条候选 finding 需要被独立复核、判断是否真为
 
 ## 过程
 
-1. 用 `read`（必要时 `grep`）**亲自**定位 `location.file` 对应代码及其调用链。
+1. 用文件读取工具（`read` 或等价工具；必要时搜索工具 `grep` 或等价工具）**亲自**定位 `location.file` 对应代码及其调用链。
 2. 独立判断：
    - 数据是否**确实**由不可信源流入 sink？
    - 中间是否存在校验/参数化/编码/授权把风险消除？
    - 是否可实际利用（可达性）、前置条件是什么？
-3. 若存在 `rubric/security-policy.md`，先 `read` 读取；其中「风险接受 (accepted-risk)」列出的问题应判为 `suppressed`，「不审范围」内的候选应判为 `not_applicable`。
+3. 若存在 `rubric/security-policy.md`，先用文件读取工具读取；其中「风险接受 (accepted-risk)」列出的问题应判为 `suppressed`，「不审范围」内的候选应判为 `not_applicable`。
 4. 得出 `disposition`（四选一）：
    - `reportable`：确认是真实、可报告的问题
    - `suppressed`：误报，或代码已明确抑制（如已参数化、已鉴权）

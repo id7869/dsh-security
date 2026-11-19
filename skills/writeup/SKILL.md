@@ -16,7 +16,7 @@ whenToUse: 当需要将 finding 转为可对外分发的漏洞报告时使用。
 
 ## 过程
 
-1. 若 `repo` 给定，用 `read` 读 `location.file` 及其调用上下文，补充 technical details。
+1. 若 `repo` 给定，用文件读取工具（`read` 或等价工具）读 `location.file` 及其调用上下文，补充 technical details。
 2. 按以下结构撰写报告：
 
 ## 标题

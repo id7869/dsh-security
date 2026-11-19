@@ -15,7 +15,7 @@ whenToUse: 当需要建立代码库的攻击面清单、为威胁建模与漏洞
 
 ## 过程
 
-1. 用 `glob`、`grep`、`read` 摸清目录结构（跳过 `node_modules`、`.git`、`dist`、`build`、`target`、`__pycache__`、vendor 等依赖/产物目录）。
+1. 用文件查找/读取工具（`glob`/`grep`/`read`；本机若无同名工具，改用 `ops_glob`/`ops_grep`/`ops_inspect_local_file` 等等价工具）摸清目录结构（跳过 `node_modules`、`.git`、`dist`、`build`、`target`、`__pycache__`、vendor 等依赖/产物目录）。
 2. 识别语言与框架：读依赖清单（`package.json`、`requirements.txt`/`pyproject.toml`、`go.mod`、`pom.xml`/`build.gradle`、`Cargo.toml`、`*.csproj`、`composer.json` 等）。
 3. 找出入口点：HTTP 路由/控制器、CLI 入口、事件处理器、cron/定时任务、消息队列消费者、serverless handler。
 4. 定位认证与会话：登录/鉴权中间件、session 管理、JWT 签发与校验、API key 校验点。
@@ -52,6 +52,7 @@ whenToUse: 当需要建立代码库的攻击面清单、为威胁建模与漏洞
   "repository": "<repo 目录名>",
   "inventoryStrategy": "directory",
   "scannedFiles": ["src/index.js", "src/db.js"],
+  "fileHashes": {"src/index.js": "<sha256 小写 hex>", "src/db.js": "<sha256 小写 hex>"},
   "totalFilesEstimate": 2,
   "skipped": {"node_modules": 1, ".git": 1},
   "sinkCount": 5

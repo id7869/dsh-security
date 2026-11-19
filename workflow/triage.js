@@ -17,7 +17,7 @@ function idOf(f) { return "csf_" + fingerprintOf(f).replace(/^w?fp_/, ""); }
 function skillPrompt(stage, extra) {
   const lines = [
     `你是 dsh-security 安全审计流水线的「${stage}」阶段。`,
-    `第一步用 read 工具读取并严格遵循该阶段说明：${skillDir}/${stage}/SKILL.md`,
+    `第一步读取并严格遵循该阶段说明（用 read 或等价文件读取工具，如 ops_inspect_local_file）：${skillDir}/${stage}/SKILL.md`,
     `repo = ${repo}`,
   ];
   if (outputDir) lines.push(`outputDir = ${outputDir}`);
@@ -69,7 +69,7 @@ phase("triage-write");
 let writeSummary = "";
 if (reportable.length > 0) {
   writeSummary = await agent(
-    `将下面 reportable finding 追加写入 ${stateDir}/findings.jsonl（每行一个 JSON，createdAt 用当前 ISO-8601 时间，目录不存在则创建）：${JSON.stringify(reportable)}\n用 write/pwsh 追加或重写，最后返回追加了几行。`,
+    `将下面 reportable finding 追加写入 ${stateDir}/findings.jsonl（每行一个 JSON，createdAt 用当前 ISO-8601 时间，目录不存在则创建）：${JSON.stringify(reportable)}\n用 write 或等价命令工具追加/重写，最后返回追加了几行。`,
     { label: "triage-write", phase: "triage-write" },
   );
 }

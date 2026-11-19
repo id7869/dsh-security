@@ -13,7 +13,7 @@ const findings = (Array.isArray(raw) ? raw : [raw]).filter((f) => f && typeof f 
 function skillPrompt(stage, extra) {
   const lines = [
     `你是 dsh-security 安全审计流水线的「${stage}」阶段。`,
-    `第一步用 read 工具读取并严格遵循该阶段说明：${skillDir}/${stage}/SKILL.md`,
+    `第一步读取并严格遵循该阶段说明（用 read 或等价文件读取工具，如 ops_inspect_local_file）：${skillDir}/${stage}/SKILL.md`,
     `repo = ${repo}`,
   ];
   if (outputDir) lines.push(`outputDir = ${outputDir}`);
@@ -84,7 +84,7 @@ const logRows = records.map((r) => ({
   fixedAt: null,
 }));
 const logText = await agent(
-  `将下面修复记录追加写入 ${stateDir}/fixes.jsonl（每行一个 JSON，fixedAt 用当前 ISO-8601 时间，目录不存在则创建）：${JSON.stringify(logRows)}\n用 write/pwsh 追加或重写该文件，最后返回追加了几行。`,
+  `将下面修复记录追加写入 ${stateDir}/fixes.jsonl（每行一个 JSON，fixedAt 用当前 ISO-8601 时间，目录不存在则创建）：${JSON.stringify(logRows)}\n用 write 或等价命令工具追加/重写该文件，最后返回追加了几行。`,
   { label: "fix-log", phase: "fix-log" },
 );
 

@@ -11,8 +11,8 @@ whenToUse: 当已有代码盘点结果、需要推导"哪些输入能触达哪�
 ## 输入
 
 - `repo`：待审计目录绝对路径。
-- `outputDir`：产物目录，其中已有 `outputDir/inventory.json`（上一阶段产物）。用 `read` 读取它。
-- 需要时可回到 `repo` 里 `read`/`grep` 补充上下文。
+- `outputDir`：产物目录，其中已有 `outputDir/inventory.json`（上一阶段产物）。用文件读取工具（`read` 或等价工具）读取它。
+- 需要时可回到 `repo` 里用文件读取/搜索工具（`read`/`grep` 或等价工具）补充上下文。
 
 ## 过程
 

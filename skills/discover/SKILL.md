@@ -11,7 +11,7 @@ whenToUse: 当已有关盘点与威胁模型、需要生成结构化的候选安
 ## 输入
 
 - `repo`：待审计目录绝对路径。
-- `outputDir`：产物目录，其中已有 `inventory.json` 与 `threat-model.md`。用 `read` 读取。
+- `outputDir`：产物目录，其中已有 `inventory.json` 与 `threat-model.md`。用文件读取工具（`read` 或等价工具）读取。
 
 ## 过程
 

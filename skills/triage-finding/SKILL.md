@@ -15,7 +15,7 @@ whenToUse: 当有一条来自外部（其他扫描器、工单、人工报告）
 
 ## 过程
 
-1. 用 `read` 精读 `location.file`（若给了位置），找不到定位就按 `title` 在 `repo` 内 `grep` 搜索对应代码。
+1. 用文件读取工具（`read` 或等价工具）精读 `location.file`（若给了位置）；找不到定位就按 `title` 用搜索工具（`grep` 或等价工具）在 `repo` 内搜索对应代码。
 2. 独立复核，得出 `disposition`（四选一）：`reportable` / `suppressed` / `not_applicable` / `deferred`。
 3. 定级 `severity`（critical/high/medium/low，参考 rubric 思路：可达性 × 影响）。
 4. 补全缺失字段：`category`、`cwe`、`claim`、`evidence`、`remediation`（证据不足则写"未找到对应代码"）。

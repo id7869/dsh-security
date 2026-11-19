@@ -11,7 +11,7 @@ whenToUse: 当需要按自定义策略对已有 reportable finding 重新定级�
 ## 输入
 
 - `reportable`：待重分级的 finding JSON 数组（workflow 传入）。
-- `rubric`：策略文件路径（如 `rubric/severity-policy.md`），用 `read` 读取。
+- `rubric`：策略文件路径（如 `rubric/severity-policy.md`），用文件读取工具（`read` 或等价工具）读取。
 - `stateDir`：追加 `classification.jsonl` 的目录。
 
 ## 过程

@@ -19,7 +19,7 @@ whenToUse: 当需要确定一次 PR/commit/工作区变更涉及哪些文件、�
    - 有 `baseRef`/`headRef`：`git diff --name-only <baseRef>..<headRef>`
    - 否则：`git status --porcelain` 或 `git diff --name-only`
 2. 只保留源代码文件（排除 lockfile、生成物、二进制、删除的文件）。
-3. 对每个变更文件用 `pwsh Get-FileHash -Algorithm SHA256` 计算 SHA256，键为相对路径。
+3. 对每个变更文件计算 SHA256（小写 hex），键为相对路径：优先 `pwsh Get-FileHash -Algorithm SHA256`；若本机没有 `pwsh` 工具，改用 `powershell.exe -NoProfile -Command "(Get-FileHash -Algorithm SHA256 ...)"`、`sha256sum` 或 node `crypto`。
 4. `totalFilesEstimate` 用变更文件数；`sinkCount` 可做轻量盘点后给出整数（拿不准给 0）。
 
 ## 输出

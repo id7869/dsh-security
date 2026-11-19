@@ -18,6 +18,7 @@
 - 新增纯 JS SHA-256、`coverage.snapshotDigest` 与 SARIF CWE/`security-severity`/relationships，seal 阶段改为「按预期哈希校验」。
 - 打包：修复 `package.json` `files`（`workflow`、`cordis.patch.yml`）。
 - 防护：path 白名单 + 不可信数据只读约定。
+- rc.5 兼容性（v0.1.1）：`workflow` 入参 `meta.description` 必填；工具名自适应（`pwsh`/`read`/`glob`/`grep` 缺失时降级到 `ops_*`/`powershell.exe`/node）；provider 剥离 frontmatter 并暴露 `whenToUse`；validate/dedupe 增加 `maxConcurrency` 并发上限。
 
 ## 目录结构
 
@@ -119,7 +120,7 @@ dsh plugin --profile web rm dsh-security
 
 ### 方式二：手动执行 workflow 脚本
 
-在 DSH 会话中，用原生 `workflow` 工具执行插件内脚本，并传入 `args`。
+在 DSH 会话中，用原生 `workflow` 工具执行插件内脚本，并传入 `args`。`meta` 必须同时给 `name` 和 `description`（0.2.2-rc.5 起两者必填），建议声明 `phases`。
 
 #### 扫描（`workflow/scan.js`）
 
@@ -132,6 +133,7 @@ dsh plugin --profile web rm dsh-security
   "mode": "standard",
   "maxDiscoveryRuns": 5,
   "stopAfterNoNew": 2,
+  "maxConcurrency": 4,
   "classify": false
 }
 ```
@@ -147,6 +149,7 @@ dsh plugin --profile web rm dsh-security
 | `mode` | `standard` | `standard` 单轮发现；`deep` 多 pass 深扫 |
 | `maxDiscoveryRuns` | 5 | 深扫最大发现轮数 |
 | `stopAfterNoNew` | 2 | 连续 N 轮无新 reportable 根因即停止 |
+| `maxConcurrency` | 4 | validate/dedupe 阶段并发上限（1–16；TPM 受限机器用 2） |
 | `historyLimit` | 500 | 历史召回上限（去重阶段） |
 | `classify` | false | 是否追加 rubric 严重度重分级 |
 
@@ -243,7 +246,9 @@ inventory → threat-model → [ discover → validate ]×(深扫多轮，按指
 
 - **不要在本机 DSH 0.1.2-rc.1 上安装 `@dsh-external/workflow`（dsh_workflow）**：它与本机 Session API 不兼容（`agent.session.events is not iterable`），跑 workflow 会崩 host。本插件不依赖它，走原生 `workflow` 工具。
 - 扫描目标 `repo` 必须在当前会话工作区内；工作区外需更宽沙箱/审批。
-- 编排脚本自身无文件系统访问：所有读写由各阶段 subagent 用 read/write 完成，脚本只协调与传文本。
+- 编排脚本自身无文件系统访问：所有读写由各阶段 subagent 用文件读写工具（`read`/`write`，或本机等价的 `ops_inspect_local_file`/`write`）完成，脚本只协调与传文本。
+- **工具面差异**：若 profile 装了 `dsh-ops`，官方 `pwsh`/`read`/`glob`/`grep`/`bash` 会被 profile 级替换为 `ops_*`（不随预设恢复）。本插件文案已按「优先用官方工具，缺失时用 `ops_*` / `powershell.exe` / `sha256sum` / node `crypto` 等价方式」书写。
+- **预设要求**：`ops-ptc` 预设只向模型暴露 `run_code`，没有 `workflow` 工具，本插件无法执行；请把会话预设切到 `standard` 或 `ptc`。
 - 默认 report-only；只有 `fix.js` 会改源码。
 
 - **官方实验性 Agent Teams 插件（`@nanmicoder/dsh-agent-teams@0.1.18` / 官方 `@deepseek-ai/dsh-experimental-agent-team-profile`）与本机 DSH 0.1.5-rc.1 子代理完成回调存在兼容性冲突**：
