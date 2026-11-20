@@ -245,6 +245,45 @@ function extractJson(text) {
   }
   return s.slice(start);
 }
+function fencedBlocks(text) {
+  const out = [];
+  const re = /```(?:json|javascript|js)?\s*([\s\S]*?)```/g;
+  let m;
+  while ((m = re.exec(String(text ?? ""))) !== null) out.push(m[1]);
+  return out;
+}
+function balancedObjects(text) {
+  const s = String(text ?? "");
+  const spans = [];
+  for (let i = s.length - 1; i >= 0; i--) {
+    const c = s[i];
+    if (c !== "{" && c !== "[") continue;
+    const close = c === "{" ? "}" : "]";
+    let depth = 0, inStr = false, esc = false;
+    for (let j = i; j < s.length; j++) {
+      const ch = s[j];
+      if (inStr) { if (esc) { esc = false; continue; } if (ch === "\\") { esc = true; continue; } if (ch === '"') inStr = false; continue; }
+      if (ch === '"') { inStr = true; continue; }
+      if (ch === c) depth++;
+      else if (ch === close) { depth--; if (depth === 0) { spans.push(s.slice(i, j + 1)); break; } }
+    }
+  }
+  return spans;
+}
+// validate 结果专用：围栏块优先 → 全文本 → 由后往前的平衡对象，取第一个可解析且含 title 的对象
+function parseValidation(text) {
+  const cands = [];
+  for (const b of fencedBlocks(text)) cands.push(b);
+  cands.push(String(text ?? ""));
+  for (const b of balancedObjects(text)) cands.push(b);
+  for (const c of cands) {
+    try {
+      const o = JSON.parse(c);
+      if (o && typeof o === "object" && !Array.isArray(o) && o.title) return { ok: true, value: o };
+    } catch { /* try next candidate */ }
+  }
+  return { ok: false, reason: "no-json-object-with-title" };
+}
 function parseObject(text) { try { const o = JSON.parse(extractJson(text)); return o && typeof o === "object" && !Array.isArray(o) ? o : null; } catch { return null; } }
 function parseArray(text) { try { const a = JSON.parse(extractJson(text)); return Array.isArray(a) ? a : []; } catch { return []; } }
 function sevRank(s) { return { critical: 4, high: 3, medium: 2, low: 1 }[norm(s)] ?? 0; }
@@ -296,6 +335,7 @@ await agent(
 const passOfFp = new Map();
 const seenFps = new Set();
 const allFindings = [];
+const droppedValidations = [];
 const maxRuns = mode === "deep" ? Math.max(1, maxDiscoveryRuns) : 1;
 let noNewStreak = 0;
 let lastRuns = 0;
@@ -322,6 +362,7 @@ for (let run = 1; run <= maxRuns; run++) {
         skillPrompt("validate", [
           `候选 finding（待你独立复核）：${JSON.stringify(c)}`,
           "独立重读源码得出结论，最终【只返回】单个 JSON 对象，字段含 title/location/category/cwe/severity/disposition/confidence/claim/evidence/remediation/context。",
+          "输出格式硬性要求：全篇只有这一个 JSON 对象（不要前言/总结/围栏）；字符串内禁止未转义的 ASCII 双引号（引用请用「」或反引号）；字符串内禁止真实换行（用 \\n）；不要尾随逗号；输出前自检可被 JSON.parse 解析。",
         ]),
         { label: `validate:${c?.location?.file ?? "?"}`, phase: "validate" },
       ),
@@ -329,12 +370,37 @@ for (let run = 1; run <= maxRuns; run++) {
     maxConcurrency,
   );
 
+  // 解析失败的结果补一次「修正重发」，避免静默丢弃
+  const needRepair = [];
+  validated.forEach((v, i) => { if (!parseValidation(v).ok) needRepair.push(i); });
+  if (needRepair.length > 0) {
+    log(`validate 第 ${run} 轮：${needRepair.length} 条复核输出无法解析，触发修正重发`);
+    const repaired = await parallelLimited(
+      needRepair.map((i) => () =>
+        agent(
+          skillPrompt("validate", [
+            `你上一轮对下面这条候选的复核输出不是合法 JSON，无法被 JSON.parse 解析。`,
+            `候选 finding：${JSON.stringify(candidates[i])}`,
+            `你上一轮的原始输出（供修正，可能已被截断）：${String(validated[i] ?? "").slice(0, 4000)}`,
+            "请只重新发送一次修正后的 JSON 对象：字段与原要求一致；字符串内禁止出现未转义的 ASCII 双引号（引用一律用「」或反引号）；字符串内禁止真实换行（需要分行写 \\n）；不要输出 JSON 之外的任何文字；不要尾随逗号。",
+          ]),
+          { label: `validate-repair:${candidates[i]?.location?.file ?? "?"}`, phase: "validate" },
+        ),
+      ),
+      maxConcurrency,
+    );
+    needRepair.forEach((i, k) => { if (repaired?.[k] != null) validated[i] = repaired[k]; });
+  }
+
   let newCount = 0;
   candidates.forEach((c, i) => {
     const v = validated?.[i];
-    if (v == null) return;
-    const f = parseObject(v);
-    if (!f || !f.title) return;
+    const pv = parseValidation(v);
+    if (!pv.ok) {
+      droppedValidations.push({ file: c?.location?.file ?? "?", line: c?.location?.line ?? null, title: c?.title ?? "", reason: pv.reason, sample: String(v ?? "").slice(0, 300) });
+      return;
+    }
+    const f = pv.value;
     if (!f.context) f.context = c?.context;
     f.fingerprint = fingerprintOf(f);
     f.id = idOf(f);
@@ -342,7 +408,7 @@ for (let run = 1; run <= maxRuns; run++) {
     allFindings.push(f);
     if (f.disposition === "reportable" && !seenFps.has(f.fingerprint)) { seenFps.add(f.fingerprint); newCount++; }
   });
-  log(`深扫第 ${run} 轮：候选 ${candidates.length}，新增 reportable 指纹 ${newCount}，累计 finding ${allFindings.length}`);
+  log(`深扫第 ${run} 轮：候选 ${candidates.length}，新增 reportable 指纹 ${newCount}，累计 finding ${allFindings.length}${droppedValidations.length ? `，解析丢弃 ${droppedValidations.length}（见返回 droppedValidations）` : ""}`);
 
   if (mode === "deep") {
     if (newCount === 0) { noNewStreak++; if (noNewStreak >= stopAfterNoNew) { log(`连续 ${noNewStreak} 轮无新发现，停止`); break; } }
@@ -522,6 +588,7 @@ return {
   reportable: reportable.length,
   dispositions: allFindings.reduce((acc, f) => { const d = f?.disposition ?? "unknown"; acc[d] = (acc[d] ?? 0) + 1; return acc; }, {}),
   dedupeGroups: dedupeGroups.length,
+  droppedValidations: droppedValidations,
   classify: classifySummary ? String(classifySummary) : "skipped",
   seal: String(sealText ?? ""),
 };

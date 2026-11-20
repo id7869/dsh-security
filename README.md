@@ -20,6 +20,22 @@
 - 防护：path 白名单 + 不可信数据只读约定。
 - rc.5 兼容性（v0.1.1）：`workflow` 入参 `meta.description` 必填；工具名自适应（`pwsh`/`read`/`glob`/`grep` 缺失时降级到 `ops_*`/`powershell.exe`/node）；provider 剥离 frontmatter 并暴露 `whenToUse`；validate/dedupe 增加 `maxConcurrency` 并发上限。
 
+## 修复记录（v0.1.2）
+
+**问题**：`validate` 阶段的结果解析是「取模型输出里第一个 `{` 或 `[` → 括号配平 → `JSON.parse`」，失败时直接 `return`——不记日志、不计数、不重试。实测一次四仓库审计中，**4 条复核结果被静默丢弃**（子 agent 全部正常 `completed`，只是输出不是严格 JSON）：
+
+- 模式 A：中文正文里写成未转义的 ASCII 双引号（`…归 high 而非"未鉴权…"`），JSON 非法；
+- 模式 B：先写分析正文、JSON 在末尾，而抽取器取到了正文里 `` `${token}` ``、`headers['Authorization']` 这类片段，切出 `{token}` / `['Authorization']`。
+
+后果：`candidates` 与 `reportable` 数字对不上，且**丢的可能正是高危条目**（实测丢掉一条 session fixation high）。
+
+**修复**：
+
+1. 新增 `parseValidation()`：围栏块 → 全文本 → 由后往前的所有平衡 `{}`/`[]` 片段，取第一个「可解析且含 `title`」的对象（`fencedBlocks` / `balancedObjects`）。
+2. 解析失败**自动修正重发一次**（`validate-repair`）：把原始输出与候选回传给同一个 validate 提示词，要求只重发严格 JSON。仅失败时触发，不增加正常路径成本。
+3. 仍失败则记入 `droppedValidations`（含 file/line/title/reason/sample），并写入 workflow 返回值 + 每轮日志，不再静默。
+4. validate 提示词追加硬性格式约束：只输出一个 JSON 对象、字符串内禁止未转义 ASCII 双引号（用「」或反引号）、禁止真实换行（用 `\n`）、不要尾随逗号。
+
 ## 目录结构
 
 ```
